@@ -1,0 +1,120 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define SIZE 5
+
+// Given Playfair matrix (I/J combined as I)
+char matrix[SIZE][SIZE] = {
+    {'M', 'F', 'H', 'I', 'K'},
+    {'U', 'N', 'O', 'P', 'Q'},
+    {'Z', 'V', 'W', 'X', 'Y'},
+    {'E', 'L', 'A', 'R', 'G'},
+    {'D', 'S', 'T', 'B', 'C'}
+};
+
+// Find position of letter in matrix
+void findPosition(char c, int *row, int *col) {
+    if (c == 'J') c = 'I';  // Merge I/J
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            if (matrix[i][j] == c) {
+                *row = i;
+                *col = j;
+                return;
+            }
+        }
+    }
+}
+
+// Prepare plaintext: remove non-alpha, uppercase, merge I/J
+void preparePlaintext(const char *input, char *output) {
+    int j = 0;
+    for (int i = 0; input[i] != '\0'; i++) {
+        if (isalpha(input[i])) {
+            char c = toupper(input[i]);
+            if (c == 'J') c = 'I';
+            output[j++] = c;
+        }
+    }
+    output[j] = '\0';
+}
+
+// Insert 'X' between duplicate letters in a digraph and pad if needed
+void formatPlaintext(char *text) {
+    int len = strlen(text);
+    char formatted[1000];
+    int idx = 0;
+
+    for (int i = 0; i < len; i++) {
+        formatted[idx++] = text[i];
+        if (i + 1 < len) {
+            if (text[i] == text[i+1]) {
+                formatted[idx++] = 'X'; // Insert X between duplicates
+            }
+        }
+    }
+    // If length is odd, pad with 'X'
+    if (idx % 2 != 0) {
+        formatted[idx++] = 'X';
+    }
+    formatted[idx] = '\0';
+    strcpy(text, formatted);
+}
+
+// Encrypt one pair according to Playfair rules
+void encryptPair(char a, char b, char *ea, char *eb) {
+    int row1, col1, row2, col2;
+    findPosition(a, &row1, &col1);
+    findPosition(b, &row2, &col2);
+
+    if (row1 == row2) {
+        // Same row: take letter to right (wrap)
+        *ea = matrix[row1][(col1 + 1) % SIZE];
+        *eb = matrix[row2][(col2 + 1) % SIZE];
+    } else if (col1 == col2) {
+        // Same column: take letter below (wrap)
+        *ea = matrix[(row1 + 1) % SIZE][col1];
+        *eb = matrix[(row2 + 1) % SIZE][col2];
+    } else {
+        // Rectangle swap columns
+        *ea = matrix[row1][col2];
+        *eb = matrix[row2][col1];
+    }
+}
+
+int main() {
+    char plaintext[1000];
+    char prepared[1000];
+    char ciphertext[1000];
+    int pt_len, ct_index = 0;
+
+    // Input plaintext
+    strcpy(plaintext, "Must see you over Cadogan West. Coming at once.");
+
+    // Prepare plaintext (clean and uppercase)
+    preparePlaintext(plaintext, prepared);
+
+    // Format plaintext: fix doubles and pad
+    formatPlaintext(prepared);
+
+    // Encrypt digraphs
+    pt_len = strlen(prepared);
+    for (int i = 0; i < pt_len; i += 2) {
+        char ea, eb;
+        encryptPair(prepared[i], prepared[i+1], &ea, &eb);
+        ciphertext[ct_index++] = ea;
+        ciphertext[ct_index++] = eb;
+    }
+    ciphertext[ct_index] = '\0';
+
+    // Print result in groups of 5 letters for readability
+    printf("Encrypted ciphertext:\n");
+    for (int i = 0; i < ct_index; i++) {
+        printf("%c", ciphertext[i]);
+        if ((i+1) % 5 == 0) printf(" ");
+    }
+    printf("\n");
+
+    return 0;
+}
