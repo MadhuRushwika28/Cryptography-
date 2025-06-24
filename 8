@@ -1,0 +1,75 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define ALPHABET_SIZE 26
+
+// Generate cipher alphabet from keyword
+void generateCipherAlphabet(char* keyword, char cipherAlphabet[ALPHABET_SIZE]) {
+    int used[ALPHABET_SIZE] = {0};
+    int idx = 0;
+
+    // Add keyword letters (uppercase) without duplicates
+    for (int i = 0; keyword[i] != '\0'; i++) {
+        char c = toupper(keyword[i]);
+        if (c >= 'A' && c <= 'Z') {
+            if (!used[c - 'A']) {
+                cipherAlphabet[idx++] = c;
+                used[c - 'A'] = 1;
+            }
+        }
+    }
+
+    // Add remaining letters of the alphabet
+    for (char c = 'A'; c <= 'Z'; c++) {
+        if (!used[c - 'A']) {
+            cipherAlphabet[idx++] = c;
+            used[c - 'A'] = 1;
+        }
+    }
+}
+
+// Encrypt plaintext using the generated cipher alphabet
+void encrypt(char* plaintext, char* ciphertext, char cipherAlphabet[ALPHABET_SIZE]) {
+    for (int i = 0; plaintext[i] != '\0'; i++) {
+        char c = plaintext[i];
+        if (isalpha(c)) {
+            int isLower = islower(c);
+            int pos = toupper(c) - 'A';  // index in plain alphabet
+            char encryptedChar = cipherAlphabet[pos];
+            ciphertext[i] = isLower ? tolower(encryptedChar) : encryptedChar;
+        } else {
+            ciphertext[i] = c;  // non-alphabet chars unchanged
+        }
+    }
+    ciphertext[strlen(plaintext)] = '\0';
+}
+
+int main() {
+    char keyword[100];
+    char plaintext[1000];
+    char ciphertext[1000];
+    char cipherAlphabet[ALPHABET_SIZE];
+
+    printf("Enter keyword: ");
+    fgets(keyword, sizeof(keyword), stdin);
+    keyword[strcspn(keyword, "\n")] = '\0'; // Remove trailing newline
+
+    generateCipherAlphabet(keyword, cipherAlphabet);
+
+    printf("Generated cipher alphabet: ");
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        printf("%c ", cipherAlphabet[i]);
+    }
+    printf("\n");
+
+    printf("Enter plaintext: ");
+    fgets(plaintext, sizeof(plaintext), stdin);
+    plaintext[strcspn(plaintext, "\n")] = '\0';
+
+    encrypt(plaintext, ciphertext, cipherAlphabet);
+
+    printf("Encrypted ciphertext: %s\n", ciphertext);
+
+    return 0;
+}
