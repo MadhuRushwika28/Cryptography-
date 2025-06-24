@@ -1,0 +1,149 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define SIZE 5
+
+// Removes duplicates from keyword and creates 5x5 key matrix
+void createMatrix(char matrix[SIZE][SIZE], char* keyword) {
+    int used[26] = {0}; // track used letters
+    used['J' - 'A'] = 1; // I/J combined, J excluded
+    int k = 0;
+
+    // Fill matrix with keyword letters first
+    for (int i = 0; keyword[i] != '\0'; i++) {
+        char ch = toupper(keyword[i]);
+        if (ch == 'J') ch = 'I'; // treat J as I
+
+        if (ch < 'A' || ch > 'Z') continue;
+        if (!used[ch - 'A']) {
+            matrix[k / SIZE][k % SIZE] = ch;
+            used[ch - 'A'] = 1;
+            k++;
+        }
+    }
+
+    // Fill remaining letters
+    for (char ch = 'A'; ch <= 'Z'; ch++) {
+        if (!used[ch - 'A']) {
+            matrix[k / SIZE][k % SIZE] = ch;
+            used[ch - 'A'] = 1;
+            k++;
+        }
+    }
+}
+
+// Prints the 5x5 matrix (for debugging)
+void printMatrix(char matrix[SIZE][SIZE]) {
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            printf("%c ", matrix[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+// Find position of a letter in the matrix
+void findPosition(char matrix[SIZE][SIZE], char letter, int* row, int* col) {
+    if (letter == 'J') letter = 'I'; // treat J as I
+
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            if (matrix[i][j] == letter) {
+                *row = i;
+                *col = j;
+                return;
+            }
+        }
+    }
+}
+
+// Prepare plaintext: remove spaces, convert to uppercase, replace J with I, insert 'X' between double letters and pad at end
+void preparePlaintext(char* input, char* output) {
+    int len = 0;
+    for (int i = 0; input[i] != '\0'; i++) {
+        if (isalpha(input[i])) {
+            char ch = toupper(input[i]);
+            if (ch == 'J') ch = 'I';
+            output[len++] = ch;
+        }
+    }
+    output[len] = '\0';
+
+    // Insert 'X' between same letters in a digraph
+    char temp[1000];
+    int tempLen = 0;
+    for (int i = 0; i < len; i += 2) {
+        temp[tempLen++] = output[i];
+        if (i + 1 < len) {
+            if (output[i] == output[i + 1]) {
+                temp[tempLen++] = 'X';
+                i--; // so next iteration processes output[i+1]
+            } else {
+                temp[tempLen++] = output[i + 1];
+            }
+        }
+    }
+
+    // If length is odd, pad with 'X'
+    if (tempLen % 2 != 0) {
+        temp[tempLen++] = 'X';
+    }
+    temp[tempLen] = '\0';
+
+    strcpy(output, temp);
+}
+
+// Encrypt two letters according to Playfair rules
+void encryptPair(char matrix[SIZE][SIZE], char a, char b, char* c1, char* c2) {
+    int r1, c1_pos, r2, c2_pos;
+    findPosition(matrix, a, &r1, &c1_pos);
+    findPosition(matrix, b, &r2, &c2_pos);
+
+    if (r1 == r2) { // same row
+        *c1 = matrix[r1][(c1_pos + 1) % SIZE];
+        *c2 = matrix[r2][(c2_pos + 1) % SIZE];
+    } else if (c1_pos == c2_pos) { // same column
+        *c1 = matrix[(r1 + 1) % SIZE][c1_pos];
+        *c2 = matrix[(r2 + 1) % SIZE][c2_pos];
+    } else { // rectangle
+        *c1 = matrix[r1][c2_pos];
+        *c2 = matrix[r2][c1_pos];
+    }
+}
+
+int main() {
+    char keyword[100];
+    char plaintext[1000], preparedText[1000], ciphertext[1000];
+
+    printf("Enter keyword (letters only): ");
+    fgets(keyword, sizeof(keyword), stdin);
+    keyword[strcspn(keyword, "\n")] = '\0';  // remove newline
+
+    char matrix[SIZE][SIZE];
+    createMatrix(matrix, keyword);
+
+    printf("\nKey matrix:\n");
+    printMatrix(matrix);
+
+    printf("\nEnter plaintext message: ");
+    fgets(plaintext, sizeof(plaintext), stdin);
+
+    preparePlaintext(plaintext, preparedText);
+
+    printf("\nPrepared plaintext (after processing): %s\n", preparedText);
+
+    // Encrypt prepared plaintext
+    int len = strlen(preparedText);
+    for (int i = 0; i < len; i += 2) {
+        char c1, c2;
+        encryptPair(matrix, preparedText[i], preparedText[i + 1], &c1, &c2);
+        ciphertext[i] = c1;
+        ciphertext[i + 1] = c2;
+    }
+    ciphertext[len] = '\0';
+
+    printf("\nEncrypted ciphertext: %s\n", ciphertext);
+
+    return 0;
+}
