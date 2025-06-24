@@ -1,0 +1,123 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define SIZE 5
+
+// Playfair matrix
+char matrix[SIZE][SIZE];
+
+// Remove duplicates from keyword and fill matrix
+void generateMatrix(char *keyword) {
+    int used[26] = {0};
+    int i, j, k;
+    int len = strlen(keyword);
+    int idx = 0;
+
+    // Mark 'J' as merged with 'I'
+    used['J' - 'A'] = 1;
+
+    // Fill matrix with keyword letters first
+    for (i = 0; i < len; i++) {
+        char c = toupper(keyword[i]);
+        if (c < 'A' || c > 'Z') continue;
+        if (c == 'J') c = 'I';
+
+        if (!used[c - 'A']) {
+            matrix[idx / SIZE][idx % SIZE] = c;
+            used[c - 'A'] = 1;
+            idx++;
+        }
+    }
+
+    // Fill remaining letters
+    for (i = 0; i < 26; i++) {
+        if (!used[i]) {
+            matrix[idx / SIZE][idx % SIZE] = 'A' + i;
+            idx++;
+        }
+    }
+}
+
+// Find position of letter in matrix
+void findPosition(char c, int *row, int *col) {
+    if (c == 'J') c = 'I';
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            if (matrix[i][j] == c) {
+                *row = i;
+                *col = j;
+                return;
+            }
+        }
+    }
+}
+
+// Decrypt two characters pair
+void decryptPair(char a, char b, char *da, char *db) {
+    int row1, col1, row2, col2;
+    findPosition(a, &row1, &col1);
+    findPosition(b, &row2, &col2);
+
+    if (row1 == row2) {
+        *da = matrix[row1][(col1 + SIZE - 1) % SIZE];
+        *db = matrix[row2][(col2 + SIZE - 1) % SIZE];
+    } else if (col1 == col2) {
+        *da = matrix[(row1 + SIZE - 1) % SIZE][col1];
+        *db = matrix[(row2 + SIZE - 1) % SIZE][col2];
+    } else {
+        *da = matrix[row1][col2];
+        *db = matrix[row2][col1];
+    }
+}
+
+int main() {
+    char keyword[100];
+    char ciphertext[1000];
+    char cleantext[1000];  // ciphertext cleaned (no spaces)
+    char plaintext[1000];
+    int pt_index = 0;
+
+    printf("Enter Playfair keyword: ");
+    fgets(keyword, sizeof(keyword), stdin);
+    keyword[strcspn(keyword, "\n")] = '\0';
+
+    generateMatrix(keyword);
+
+    printf("Playfair Matrix:\n");
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            printf("%c ", matrix[i][j]);
+        }
+        printf("\n");
+    }
+
+    printf("\nEnter ciphertext (spaces will be ignored):\n");
+    fgets(ciphertext, sizeof(ciphertext), stdin);
+
+    // Remove spaces and convert to uppercase
+    int len = strlen(ciphertext);
+    for (int i = 0; i < len; i++) {
+        if (isalpha(ciphertext[i])) {
+            cleantext[pt_index++] = toupper(ciphertext[i]);
+        }
+    }
+    cleantext[pt_index] = '\0';
+
+    // Decrypt in pairs
+    int clen = strlen(cleantext);
+    int p = 0;
+    for (int i = 0; i < clen; i += 2) {
+        char a = cleantext[i];
+        char b = (i + 1 < clen) ? cleantext[i + 1] : 'X';  // pad if needed
+        char da, db;
+        decryptPair(a, b, &da, &db);
+        plaintext[p++] = da;
+        plaintext[p++] = db;
+    }
+    plaintext[p] = '\0';
+
+    printf("\nDecrypted plaintext:\n%s\n", plaintext);
+
+    return 0;
+}
