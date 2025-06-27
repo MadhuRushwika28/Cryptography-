@@ -1,0 +1,92 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MOD 26
+
+// Convert char to 0-25 number
+int charToNum(char c) {
+    return toupper(c) - 'A';
+}
+
+// Convert number 0-25 to uppercase letter
+char numToChar(int n) {
+    return (char)(n + 'A');
+}
+
+// Encrypt plaintext using key stream
+void encrypt(char *plaintext, int *keyStream, int keyLen, char *ciphertext) {
+    for (int i = 0; i < strlen(plaintext); i++) {
+        if (isalpha(plaintext[i])) {
+            int p = charToNum(plaintext[i]);
+            int c = (p + keyStream[i % keyLen]) % MOD;
+            ciphertext[i] = numToChar(c);
+        } else {
+            ciphertext[i] = plaintext[i]; // keep spaces as is
+        }
+    }
+    ciphertext[strlen(plaintext)] = '\0';
+}
+
+// Decrypt ciphertext using key stream
+void decrypt(char *ciphertext, int *keyStream, int keyLen, char *plaintext) {
+    for (int i = 0; i < strlen(ciphertext); i++) {
+        if (isalpha(ciphertext[i])) {
+            int c = charToNum(ciphertext[i]);
+            int p = (c - keyStream[i % keyLen] + MOD) % MOD;
+            plaintext[i] = numToChar(p);
+        } else {
+            plaintext[i] = ciphertext[i]; // keep spaces as is
+        }
+    }
+    plaintext[strlen(ciphertext)] = '\0';
+}
+
+// Find key stream given plaintext and ciphertext (both same length)
+void findKeyStream(char *plaintext, char *ciphertext, int *keyStream) {
+    for (int i = 0; i < strlen(plaintext); i++) {
+        if (isalpha(plaintext[i]) && isalpha(ciphertext[i])) {
+            int p = charToNum(plaintext[i]);
+            int c = charToNum(ciphertext[i]);
+            keyStream[i] = (c - p + MOD) % MOD;
+        } else {
+            keyStream[i] = 0; // for non-alpha characters
+        }
+    }
+}
+
+int main() {
+    // Part a: Encrypt "send more money"
+    char plaintext[] = "SEND MORE MONEY";
+    int keyStream[] = {9, 0, 1, 7, 23, 15, 21, 14, 11, 11, 2, 8, 9};
+    int keyLen = sizeof(keyStream) / sizeof(keyStream[0]);
+    char ciphertext[100];
+    
+    encrypt(plaintext, keyStream, keyLen, ciphertext);
+    printf("Ciphertext: %s\n", ciphertext);
+    
+    // Part b: Given ciphertext from (a), find a key that decrypts ciphertext to "CASH NOT NEEDED"
+    char newPlaintext[] = "CASH NOT NEEDED";
+    char givenCiphertext[] = "BESOJLIFHQUKG"; // ciphertext from part a (without spaces)
+    
+    // Remove spaces from newPlaintext for calculation
+    char cleanPlaintext[100];
+    int idx = 0;
+    for (int i = 0; newPlaintext[i] != '\0'; i++) {
+        if (isalpha(newPlaintext[i])) {
+            cleanPlaintext[idx++] = newPlaintext[i];
+        }
+    }
+    cleanPlaintext[idx] = '\0';
+
+    int newKeyStream[100];
+    findKeyStream(cleanPlaintext, givenCiphertext, newKeyStream);
+
+    printf("Key stream to decrypt ciphertext to '%s':\n", newPlaintext);
+    for (int i = 0; i < idx; i++) {
+        printf("%d ", newKeyStream[i]);
+    }
+    printf("\n");
+    
+    return 0;
+}
