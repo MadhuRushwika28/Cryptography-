@@ -1,0 +1,105 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#define ALPHABET_SIZE 26
+#define MAX_TEXT_LEN 1000
+
+// English letter frequencies in percentage
+const double eng_freq[ALPHABET_SIZE] = {
+    8.17, 1.49, 2.78, 4.25, 12.70,
+    2.23, 2.02, 6.09, 6.97, 0.15,
+    0.77, 4.03, 2.41, 6.75, 7.51,
+    1.93, 0.10, 5.99, 6.33, 9.06,
+    2.76, 0.98, 2.36, 0.15, 1.97,
+    0.07
+};
+
+// Structure to store candidate plaintext and score
+typedef struct {
+    char plaintext[MAX_TEXT_LEN];
+    double score;
+    int key;
+} Candidate;
+
+// Decrypt ciphertext with additive key (Caesar cipher)
+void decrypt(char *ciphertext, char *plaintext, int key) {
+    int len = strlen(ciphertext);
+    for (int i = 0; i < len; i++) {
+        char c = ciphertext[i];
+        if (isalpha(c)) {
+            char base = isupper(c) ? 'A' : 'a';
+            plaintext[i] = (char)((((c - base) - key + ALPHABET_SIZE) % ALPHABET_SIZE) + base);
+        } else {
+            plaintext[i] = c;
+        }
+    }
+    plaintext[len] = '\0';
+}
+
+// Calculate frequency score of decrypted text compared to English frequencies
+double freq_score(char *text) {
+    int counts[ALPHABET_SIZE] = {0};
+    int total = 0;
+    for (int i = 0; text[i] != '\0'; i++) {
+        if (isalpha(text[i])) {
+            counts[toupper(text[i]) - 'A']++;
+            total++;
+        }
+    }
+    if (total == 0) return 0.0;
+
+    // Calculate Chi-squared statistic
+    double score = 0.0;
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        double observed = counts[i];
+        double expected = total * eng_freq[i] / 100.0;
+        if (expected > 0) {
+            score += ((observed - expected) * (observed - expected)) / expected;
+        }
+    }
+    return score;
+}
+
+// Compare function for qsort (ascending order of score, smaller = better fit)
+int cmp_candidates(const void *a, const void *b) {
+    Candidate *c1 = (Candidate *)a;
+    Candidate *c2 = (Candidate *)b;
+    if (c1->score < c2->score) return -1;
+    if (c1->score > c2->score) return 1;
+    return 0;
+}
+
+int main() {
+    char ciphertext[MAX_TEXT_LEN];
+    int topN;
+
+    printf("Enter ciphertext: ");
+    fgets(ciphertext, MAX_TEXT_LEN, stdin);
+    ciphertext[strcspn(ciphertext, "\n")] = 0; // remove newline
+
+    printf("Enter number of top plaintexts to display: ");
+    scanf("%d", &topN);
+
+    if (topN > ALPHABET_SIZE) topN = ALPHABET_SIZE;
+
+    Candidate candidates[ALPHABET_SIZE];
+
+    // Try all possible keys 0-25
+    for (int key = 0; key < ALPHABET_SIZE; key++) {
+        decrypt(ciphertext, candidates[key].plaintext, key);
+        candidates[key].score = freq_score(candidates[key].plaintext);
+        candidates[key].key = key;
+    }
+
+    // Sort candidates by score (lowest chi-squared = best match)
+    qsort(candidates, ALPHABET_SIZE, sizeof(Candidate), cmp_candidates);
+
+    printf("\nTop %d possible plaintexts:\n", topN);
+    for (int i = 0; i < topN; i++) {
+        printf("Key %2d: %s (Score: %.2f)\n", candidates[i].key, candidates[i].plaintext, candidates[i].score);
+    }
+
+    return 0;
+}
