@@ -1,0 +1,72 @@
+#include <stdio.h>
+#include <stdint.h>
+
+// Example PC-1 table (permutes 64-bit key to 56 bits)
+int PC1[56] = {
+    57,49,41,33,25,17,9,
+    1,58,50,42,34,26,18,
+    10,2,59,51,43,35,27,
+    19,11,3,60,52,44,36,
+    63,55,47,39,31,23,15,
+    7,62,54,46,38,30,22,
+    14,6,61,53,45,37,29,
+    21,13,5,28,20,12,4
+};
+
+int shifts[16] = {1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1};
+
+// Extract bit helper
+int get_bit(uint64_t key, int pos) {
+    return (key >> (64 - pos)) & 1;
+}
+
+// Left shift 28-bit half
+uint32_t left_shift_28(uint32_t half, int shift) {
+    return ((half << shift) | (half >> (28 - shift))) & 0x0FFFFFFF;
+}
+
+void print_bits(uint64_t val, int bits) {
+    for (int i = bits-1; i >= 0; i--) {
+        printf("%lld", (val >> i) & 1);
+        if (i % 8 == 0) printf(" ");
+    }
+    printf("\n");
+}
+
+int main() {
+    uint64_t key = 0x133457799BBCDFF1; // example 64-bit key
+
+    // Apply PC-1: 64-bit key -> 56 bits split into C and D halves (28 bits each)
+    uint32_t C = 0, D = 0;
+    for (int i = 0; i < 28; i++) {
+        C <<= 1;
+        C |= get_bit(key, PC1[i]);
+    }
+    for (int i = 28; i < 56; i++) {
+        D <<= 1;
+        D |= get_bit(key, PC1[i]);
+    }
+
+    printf("Initial C: "); print_bits(C, 28);
+    printf("Initial D: "); print_bits(D, 28);
+
+    for (int round = 0; round < 16; round++) {
+        // Shift halves according to schedule
+        C = left_shift_28(C, shifts[round]);
+        D = left_shift_28(D, shifts[round]);
+
+        // Extract first 24 bits from C (MSB 24 bits of 28-bit half)
+        uint64_t subkey_first24 = (uint64_t)(C >> 4) & 0xFFFFFF; // drop last 4 bits
+
+        // Extract first 24 bits from D (MSB 24 bits of 28-bit half)
+        uint64_t subkey_second24 = (uint64_t)(D >> 4) & 0xFFFFFF;
+
+        // Combine to form 48-bit subkey: first 24 bits from C, last 24 bits from D
+        uint64_t subkey = (subkey_first24 << 24) | subkey_second24;
+
+        printf("Round %2d subkey (48 bits): ", round+1);
+        print_bits(subkey, 48);
+    }
+
+    return 0;
+}
