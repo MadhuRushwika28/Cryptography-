@@ -1,0 +1,83 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#define ALPHABET_SIZE 26
+#define MAX_TEXT_LEN 1000
+#define TOP_N 10
+
+// English letter frequencies sorted by frequency (descending order)
+const char english_freq_order[ALPHABET_SIZE + 1] = "ETAOINSHRDLCUMWFGYPBVKJXQZ";
+
+// Structure to hold letters and frequencies
+typedef struct {
+    char letter;
+    int count;
+} LetterFreq;
+
+// Compare for qsort: descending frequency
+int cmp_freq_desc(const void *a, const void *b) {
+    LetterFreq *lf1 = (LetterFreq *)a;
+    LetterFreq *lf2 = (LetterFreq *)b;
+    return lf2->count - lf1->count;
+}
+
+// Apply simple substitution based on mapping cipher->plain letters
+void applySubstitution(char *ciphertext, char *plaintext, char *mapping) {
+    int len = strlen(ciphertext);
+    for (int i = 0; i < len; i++) {
+        char c = ciphertext[i];
+        if (isalpha(c)) {
+            int idx = toupper(c) - 'A';
+            plaintext[i] = mapping[idx];
+            if (islower(c)) plaintext[i] = tolower(plaintext[i]);
+        } else {
+            plaintext[i] = c;
+        }
+    }
+    plaintext[len] = '\0';
+}
+
+int main() {
+    char ciphertext[MAX_TEXT_LEN];
+    printf("Enter ciphertext:\n");
+    fgets(ciphertext, MAX_TEXT_LEN, stdin);
+    ciphertext[strcspn(ciphertext, "\n")] = 0; // remove newline
+
+    // Count letter frequencies in ciphertext
+    LetterFreq freqs[ALPHABET_SIZE];
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        freqs[i].letter = 'A' + i;
+        freqs[i].count = 0;
+    }
+    for (int i = 0; ciphertext[i] != '\0'; i++) {
+        if (isalpha(ciphertext[i])) {
+            freqs[toupper(ciphertext[i]) - 'A'].count++;
+        }
+    }
+
+    // Sort letters by descending frequency
+    qsort(freqs, ALPHABET_SIZE, sizeof(LetterFreq), cmp_freq_desc);
+
+    // Create a mapping from ciphertext letters to English freq letters
+    // Map most frequent ciphertext letter to 'E', 2nd to 'T', etc.
+    char mapping[ALPHABET_SIZE];
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        mapping[freqs[i].letter - 'A'] = english_freq_order[i];
+    }
+
+    // Apply substitution to get first candidate plaintext
+    char plaintext[MAX_TEXT_LEN];
+    applySubstitution(ciphertext, plaintext, mapping);
+
+    printf("\nSimple frequency analysis guess:\n");
+    printf("%s\n", plaintext);
+
+    // This is a single guess based on frequency mapping only.
+    // A full search of permutations of top letters is very complex and not feasible here.
+    // For "top 10" guesses, one might permute the first few letters, but that
+    // explodes quickly and requires heuristics beyond this simple demo.
+
+    return 0;
+}
