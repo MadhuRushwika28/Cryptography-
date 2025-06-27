@@ -1,0 +1,68 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MOD 26
+
+// Convert character to number 0-25
+int charToNum(char c) {
+    return toupper(c) - 'A';
+}
+
+// Convert number 0-25 to character
+char numToChar(int n) {
+    return (char)(n + 'A');
+}
+
+// Encrypt using Hill cipher (2x2)
+void encrypt(char *plaintext, char *ciphertext, int key[2][2]) {
+    int len = strlen(plaintext);
+    if (len % 2 != 0) {
+        plaintext[len] = 'X'; // padding if needed
+        plaintext[len + 1] = '\0';
+        len++;
+    }
+    for (int i = 0; i < len; i += 2) {
+        int p1 = charToNum(plaintext[i]);
+        int p2 = charToNum(plaintext[i + 1]);
+        int c1 = (key[0][0] * p1 + key[0][1] * p2) % MOD;
+        int c2 = (key[1][0] * p1 + key[1][1] * p2) % MOD;
+        ciphertext[i] = numToChar(c1);
+        ciphertext[i + 1] = numToChar(c2);
+    }
+    ciphertext[len] = '\0';
+}
+
+// Decrypt using Hill cipher (2x2)
+void decrypt(char *ciphertext, char *plaintext, int invKey[2][2]) {
+    int len = strlen(ciphertext);
+    for (int i = 0; i < len; i += 2) {
+        int c1 = charToNum(ciphertext[i]);
+        int c2 = charToNum(ciphertext[i + 1]);
+        int p1 = (invKey[0][0] * c1 + invKey[0][1] * c2) % MOD;
+        int p2 = (invKey[1][0] * c1 + invKey[1][1] * c2) % MOD;
+        if (p1 < 0) p1 += MOD;
+        if (p2 < 0) p2 += MOD;
+        plaintext[i] = numToChar(p1);
+        plaintext[i + 1] = numToChar(p2);
+    }
+    plaintext[len] = '\0';
+}
+
+int main() {
+    // Original plaintext (spaces removed and uppercase)
+    char plaintext[] = "MEETMEATTHEUSUALPLACEATTENRATHERTHANEIGHTOCLOCK";
+    char ciphertext[100];
+    char decrypted[100];
+
+    int key[2][2] = {{9, 4}, {5, 7}};
+    int invKey[2][2] = {{5, 12}, {15, 25}}; // precomputed inverse mod 26
+
+    encrypt(plaintext, ciphertext, key);
+    printf("Ciphertext: %s\n", ciphertext);
+
+    decrypt(ciphertext, decrypted, invKey);
+    printf("Decrypted Text: %s\n", decrypted);
+
+    return 0;
+}
