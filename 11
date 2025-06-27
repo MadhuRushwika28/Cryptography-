@@ -1,0 +1,14 @@
+#include <stdio.h>
+#include <math.h>
+
+int main() {
+    int n = 25;
+    double log2_fact = 0.0;
+    for (int i = 1; i <= n; i++) {
+        log2_fact += log2(i);
+    }
+    printf("Approximate log2(25!) = %.2f\n", log2_fact);
+    printf("Approximate total keys ignoring equivalence = 2^%.0f\n", log2_fact);
+    printf("Approximate effective unique keys (dividing by 120) = 2^%.0f\n", log2_fact - log2(120));
+    return 0;
+}
