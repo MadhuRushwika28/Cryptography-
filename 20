@@ -1,0 +1,109 @@
+#include <stdio.h>
+#include <string.h>
+
+#define BLOCK_SIZE 8
+#define NUM_BLOCKS 4
+
+// Simple "encryption": XOR with key
+void simple_encrypt(unsigned char *plaintext, unsigned char *ciphertext, unsigned char *key) {
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        ciphertext[i] = plaintext[i] ^ key[i];
+    }
+}
+
+// Simple "decryption": same as encryption (XOR)
+void simple_decrypt(unsigned char *ciphertext, unsigned char *plaintext, unsigned char *key) {
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        plaintext[i] = ciphertext[i] ^ key[i];
+    }
+}
+
+// ECB mode encryption
+void ecb_encrypt(unsigned char plaintext[NUM_BLOCKS][BLOCK_SIZE], unsigned char ciphertext[NUM_BLOCKS][BLOCK_SIZE], unsigned char key[BLOCK_SIZE]) {
+    for (int i = 0; i < NUM_BLOCKS; i++) {
+        simple_encrypt(plaintext[i], ciphertext[i], key);
+    }
+}
+
+// ECB mode decryption
+void ecb_decrypt(unsigned char ciphertext[NUM_BLOCKS][BLOCK_SIZE], unsigned char plaintext[NUM_BLOCKS][BLOCK_SIZE], unsigned char key[BLOCK_SIZE]) {
+    for (int i = 0; i < NUM_BLOCKS; i++) {
+        simple_decrypt(ciphertext[i], plaintext[i], key);
+    }
+}
+
+// CBC mode encryption
+void cbc_encrypt(unsigned char plaintext[NUM_BLOCKS][BLOCK_SIZE], unsigned char ciphertext[NUM_BLOCKS][BLOCK_SIZE], unsigned char key[BLOCK_SIZE], unsigned char iv[BLOCK_SIZE]) {
+    unsigned char prev_block[BLOCK_SIZE];
+    memcpy(prev_block, iv, BLOCK_SIZE);
+
+    for (int i = 0; i < NUM_BLOCKS; i++) {
+        unsigned char input[BLOCK_SIZE];
+        for (int j = 0; j < BLOCK_SIZE; j++) {
+            input[j] = plaintext[i][j] ^ prev_block[j];
+        }
+        simple_encrypt(input, ciphertext[i], key);
+        memcpy(prev_block, ciphertext[i], BLOCK_SIZE);
+    }
+}
+
+// CBC mode decryption
+void cbc_decrypt(unsigned char ciphertext[NUM_BLOCKS][BLOCK_SIZE], unsigned char plaintext[NUM_BLOCKS][BLOCK_SIZE], unsigned char key[BLOCK_SIZE], unsigned char iv[BLOCK_SIZE]) {
+    unsigned char prev_block[BLOCK_SIZE];
+    memcpy(prev_block, iv, BLOCK_SIZE);
+
+    for (int i = 0; i < NUM_BLOCKS; i++) {
+        unsigned char decrypted[BLOCK_SIZE];
+        simple_decrypt(ciphertext[i], decrypted, key);
+        for (int j = 0; j < BLOCK_SIZE; j++) {
+            plaintext[i][j] = decrypted[j] ^ prev_block[j];
+        }
+        memcpy(prev_block, ciphertext[i], BLOCK_SIZE);
+    }
+}
+
+void print_blocks(unsigned char blocks[NUM_BLOCKS][BLOCK_SIZE], const char *label) {
+    printf("%s:\n", label);
+    for (int i = 0; i < NUM_BLOCKS; i++) {
+        printf("Block %d: ", i+1);
+        for (int j = 0; j < BLOCK_SIZE; j++) {
+            printf("%02X ", blocks[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
+int main() {
+    unsigned char key[BLOCK_SIZE] = {0x1A,0x2B,0x3C,0x4D,0x5E,0x6F,0x70,0x81};
+    unsigned char iv[BLOCK_SIZE]  = {0x00}; // Initialization vector for CBC
+
+    unsigned char plaintext[NUM_BLOCKS][BLOCK_SIZE] = {
+        "BlockOne", "BlockTwo", "BlockThr", "BlockFor"
+    };
+
+    unsigned char ciphertext[NUM_BLOCKS][BLOCK_SIZE];
+    unsigned char decrypted[NUM_BLOCKS][BLOCK_SIZE];
+
+    printf("=== ECB Mode ===\n");
+    ecb_encrypt(plaintext, ciphertext, key);
+    print_blocks(ciphertext, "Ciphertext");
+
+    // Simulate error in ciphertext block 1
+    ciphertext[0][0] ^= 0xFF;  // flip bits to simulate error
+
+    ecb_decrypt(ciphertext, decrypted, key);
+    print_blocks(decrypted, "Decrypted plaintext (with error in C1)");
+
+    printf("=== CBC Mode ===\n");
+    cbc_encrypt(plaintext, ciphertext, key, iv);
+    print_blocks(ciphertext, "Ciphertext");
+
+    // Simulate error in ciphertext block 1
+    ciphertext[0][0] ^= 0xFF;  // flip bits
+
+    cbc_decrypt(ciphertext, decrypted, key, iv);
+    print_blocks(decrypted, "Decrypted plaintext (with error in C1)");
+
+    return 0;
+}
