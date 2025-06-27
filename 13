@@ -1,0 +1,66 @@
+#include <stdio.h>
+
+#define MOD 26
+
+// Function prototypes
+int modInverse(int a, int m);
+void matrixInverse2x2(int matrix[2][2], int inv[2][2]);
+void matrixMultiply2x2(int A[2][2], int B[2][2], int result[2][2]);
+
+int main() {
+    // Example known plaintext pairs (2 pairs) - letters converted to numbers 0-25
+    int P[2][2] = { {7, 1}, {8, 24} };  // Plaintext: HI (7,8), BY (1,24)
+    int C[2][2] = { {5, 15}, {13, 22} }; // Ciphertext: FN (5,13), PW (15,22)
+
+    int P_inv[2][2];
+    matrixInverse2x2(P, P_inv);
+
+    int K[2][2];
+    matrixMultiply2x2(C, P_inv, K);
+
+    printf("Recovered Key Matrix:\n");
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 2; j++)
+            printf("%d ", (K[i][j] + MOD) % MOD);
+        printf("\n");
+    }
+    return 0;
+}
+
+// Compute modular inverse of a mod m (only works if gcd(a,m) == 1)
+int modInverse(int a, int m) {
+    a = a % m;
+    for (int x = 1; x < m; x++)
+        if ((a * x) % m == 1)
+            return x;
+    return -1; // No inverse if returned -1
+}
+
+// Calculate inverse of 2x2 matrix mod 26
+void matrixInverse2x2(int matrix[2][2], int inv[2][2]) {
+    int det = matrix[0][0]*matrix[1][1] - matrix[0][1]*matrix[1][0];
+    det = ((det % MOD) + MOD) % MOD;
+    int detInv = modInverse(det, MOD);
+
+    inv[0][0] =  matrix[1][1] * detInv % MOD;
+    inv[0][1] = -matrix[0][1] * detInv % MOD;
+    inv[1][0] = -matrix[1][0] * detInv % MOD;
+    inv[1][1] =  matrix[0][0] * detInv % MOD;
+
+    // Make sure all entries are positive mod 26
+    for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++) {
+            inv[i][j] = (inv[i][j] + MOD) % MOD;
+        }
+}
+
+// Multiply 2x2 matrices mod 26
+void matrixMultiply2x2(int A[2][2], int B[2][2], int result[2][2]) {
+    for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++) {
+            result[i][j] = 0;
+            for (int k = 0; k < 2; k++)
+                result[i][j] += A[i][k] * B[k][j];
+            result[i][j] %= MOD;
+        }
+}
