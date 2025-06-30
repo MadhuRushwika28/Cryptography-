@@ -1,0 +1,51 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <time.h>
+
+// Total lanes = 25 (5x5 matrix), each 64 bits
+#define NUM_LANES 25
+#define RATE_LANES 16
+#define CAPACITY_LANES 9
+
+// Generate a nonzero 64-bit random number
+uint64_t rand_nonzero64() {
+    uint64_t r = 0;
+    while (r == 0)
+        r = ((uint64_t)rand() << 32) | rand();
+    return r;
+}
+
+int main() {
+    srand((unsigned int)time(NULL));
+
+    uint64_t state[NUM_LANES] = {0};
+
+    // Initialize rate portion (first 16 lanes) with nonzero values (P0)
+    for (int i = 0; i < RATE_LANES; i++) {
+        state[i] = rand_nonzero64();
+    }
+
+    // Capacity lanes (16–24) start at 0
+    // We'll XOR random nonzero values into rate lanes per round
+
+    int rounds = 0;
+
+    // Used to check how many capacity lanes are still zero
+    int all_nonzero = 0;
+    while (!all_nonzero) {
+        rounds++;
+
+        // Simulate absorbing a block:
+        for (int i = 0; i < RATE_LANES; i++) {
+            uint64_t input = rand_nonzero64();
+            state[i] ^= input;  // absorb new message block
+        }
+
+        // After each absorption, simulate state propagation:
+        // We assume that XORing nonzero values in the rate section eventually affects capacity
+        // So we'll simulate this by randomly flipping bits in the capacity section from the rate section
+
+        for (int i = RATE_LANES; i < NUM_LANES; i++) {
+            uint64_t mix = state[rand() % RATE_LANES]; // pull a random rate lane
+            state[i] ^= mix
