@@ -1,0 +1,105 @@
+#include <stdio.h>
+#include <stdint.h>
+
+// Block size (in bytes)
+#define BLOCK_SIZE 8
+
+// Simple XOR "encryption" for demonstration (not secure!)
+void encrypt(uint8_t *plaintext, uint8_t *key, uint8_t *ciphertext) {
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        ciphertext[i] = plaintext[i] ^ key[i];
+    }
+}
+
+// XOR two blocks: out = a XOR b
+void xor_blocks(uint8_t *a, uint8_t *b, uint8_t *out) {
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        out[i] = a[i] ^ b[i];
+    }
+}
+
+// Print a block in hex
+void print_block(uint8_t *block) {
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        printf("%02X ", block[i]);
+    }
+    printf("\n");
+}
+
+// Compute CBC-MAC of single-block message X
+void cbc_mac_one_block(uint8_t *key, uint8_t *X, uint8_t *T) {
+    // IV = 0 (zero block)
+    uint8_t iv[BLOCK_SIZE] = {0};
+
+    uint8_t input[BLOCK_SIZE];
+    xor_blocks(X, iv, input); // input = X XOR IV (IV=0 → input=X)
+
+    encrypt(input, key, T);
+}
+
+// Compute CBC-MAC of two-block message M1 || M2
+void cbc_mac_two_block(uint8_t *key, uint8_t *M1, uint8_t *M2, uint8_t *T) {
+    uint8_t iv[BLOCK_SIZE] = {0};
+    uint8_t c1[BLOCK_SIZE], c2[BLOCK_SIZE];
+
+    uint8_t input[BLOCK_SIZE];
+
+    // First block
+    xor_blocks(M1, iv, input);
+    encrypt(input, key, c1);
+
+    // Second block
+    xor_blocks(M2, c1, input);
+    encrypt(input, key, c2);
+
+    // MAC is last ciphertext block
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        T[i] = c2[i];
+    }
+}
+
+int main() {
+    // Key (8 bytes)
+    uint8_t key[BLOCK_SIZE] = {0x1A,0x2B,0x3C,0x4D,0x5E,0x6F,0x7A,0x8B};
+
+    // One-block message X
+    uint8_t X[BLOCK_SIZE] = {0x10,0x20,0x30,0x40,0x50,0x60,0x70,0x80};
+
+    // Compute T = MAC(K, X)
+    uint8_t T[BLOCK_SIZE];
+    cbc_mac_one_block(key, X, T);
+
+    printf("MAC of one-block message X:\n");
+    print_block(T);
+
+    // Compute X ⊕ T
+    uint8_t X_xor_T[BLOCK_SIZE];
+    xor_blocks(X, T, X_xor_T);
+
+    printf("X XOR T:\n");
+    print_block(X_xor_T);
+
+    // Compute MAC of two-block message X || (X ⊕ T)
+    uint8_t T2[BLOCK_SIZE];
+    cbc_mac_two_block(key, X, X_xor_T, T2);
+
+    printf("MAC of two-block message X || (X XOR T):\n");
+    print_block(T2);
+
+    // Check if T == T2
+    int equal = 1;
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        if (T[i] != T2[i]) {
+            equal = 0;
+            break;
+        }
+    }
+
+    if (equal) {
+        printf("MACs are equal! Vulnerability demonstrated.\n");
+    } else {
+        printf("MACs differ.\n");
+    }
+
+    return 0;
+}
