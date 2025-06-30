@@ -1,0 +1,78 @@
+#include <stdio.h>
+#include <string.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+
+#define BLOCK_SIZE 16
+
+// Padding function: pad with 0x80 followed by zeros
+int pad(unsigned char *in, int in_len, unsigned char *out) {
+    int pad_len = BLOCK_SIZE - (in_len % BLOCK_SIZE);
+    memcpy(out, in, in_len);
+    out[in_len] = 0x80;
+    memset(out + in_len + 1, 0x00, pad_len - 1);
+    return in_len + pad_len;
+}
+
+void print_hex(const char *label, const unsigned char *data, int len) {
+    printf("%s: ", label);
+    for (int i = 0; i < len; ++i)
+        printf("%02x", data[i]);
+    printf("\n");
+}
+
+void encrypt(const unsigned char *plaintext, int plaintext_len,
+             const unsigned char *key, const unsigned char *iv,
+             unsigned char *ciphertext, const EVP_CIPHER *cipher) {
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    int len, ciphertext_len;
+
+    EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv);
+    EVP_CIPHER_CTX_set_padding(ctx, 0); // Disable OpenSSL's padding
+
+    EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len);
+    ciphertext_len = len;
+
+    EVP_EncryptFinal_ex(ctx, ciphertext + len, &len);
+    ciphertext_len += len;
+
+    EVP_CIPHER_CTX_free(ctx);
+}
+
+int main() {
+    unsigned char key[BLOCK_SIZE] = "0123456789abcdef"; // 16-byte key
+    unsigned char iv[BLOCK_SIZE]; // Initialization vector
+    RAND_bytes(iv, sizeof(iv));   // Generate random IV
+
+    unsigned char input[64] = "This is a test message for encryption!";
+    int input_len = strlen((char *)input);
+    unsigned char padded_input[BLOCK_SIZE * 4];
+    unsigned char ciphertext[BLOCK_SIZE * 4];
+
+    int padded_len = pad(input, input_len, padded_input);
+
+    printf("Original plaintext: %s\n", input);
+    printf("Padded length: %d\n", padded_len);
+
+    // ECB Mode
+    encrypt(padded_input, padded_len, key, NULL, ciphertext, EVP_aes_128_ecb());
+    print_hex("ECB Ciphertext", ciphertext, padded_len);
+
+    // CBC Mode
+    encrypt(padded_input, padded_len, key, iv, ciphertext, EVP_aes_128_cbc());
+    print_hex("CBC Ciphertext", ciphertext, padded_len);
+
+    // CFB Mode (acts like stream cipher, doesn't need padding)
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    int len, outlen = 0;
+    EVP_EncryptInit_ex(ctx, EVP_aes_128_cfb128(), NULL, key, iv);
+    EVP_EncryptUpdate(ctx, ciphertext, &len, input, input_len);
+    outlen = len;
+    EVP_EncryptFinal_ex(ctx, ciphertext + len, &len);
+    outlen += len;
+    EVP_CIPHER_CTX_free(ctx);
+
+    print_hex("CFB Ciphertext", ciphertext, outlen);
+
+    return 0;
+}
