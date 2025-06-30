@@ -1,0 +1,41 @@
+#include <stdio.h>
+
+// Fast modular exponentiation
+int mod_exp(int base, int exp, int mod) {
+    int result = 1;
+    base %= mod;
+    while (exp > 0) {
+        if (exp % 2 == 1)
+            result = (result * base) % mod;
+        base = (base * base) % mod;
+        exp /= 2;
+    }
+    return result;
+}
+
+int main() {
+    // Public values (should be large primes in real use)
+    int q = 23;   // prime modulus
+    int a = 5;    // primitive root mod 23
+
+    // Alice's secret
+    int xa = 6;
+    // Bob's secret
+    int xb = 15;
+
+    // Alice sends ya = a^xa mod q
+    int ya = mod_exp(a, xa, q);
+    // Bob sends yb = a^xb mod q
+    int yb = mod_exp(a, xb, q);
+
+    // Each computes shared key
+    int Ka = mod_exp(yb, xa, q);  // Bob's public raised to Alice's secret
+    int Kb = mod_exp(ya, xb, q);  // Alice's public raised to Bob's secret
+
+    printf("Alice sends: %d\n", ya);
+    printf("Bob sends: %d\n", yb);
+    printf("Shared key computed by Alice: %d\n", Ka);
+    printf("Shared key computed by Bob:   %d\n", Kb);
+
+    return 0;
+}
