@@ -1,0 +1,70 @@
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+
+// Fast modular exponentiation
+int mod_exp(int base, int exp, int mod) {
+    int result = 1;
+    base %= mod;
+    while (exp > 0) {
+        if (exp % 2)
+            result = (result * base) % mod;
+        base = (base * base) % mod;
+        exp /= 2;
+    }
+    return result;
+}
+
+// Map char to 0–25
+int char_to_num(char c) {
+    if (c >= 'A' && c <= 'Z') return c - 'A';
+    if (c >= 'a' && c <= 'z') return c - 'a';
+    return -1;
+}
+
+// Map 0–25 to char
+char num_to_char(int n) {
+    return 'A' + n;
+}
+
+int main() {
+    int e = 17;
+    int n = 3233;
+
+    const char *message = "HELLO";
+    int encrypted[100];
+    int length = strlen(message);
+
+    printf("Encrypting message: %s\n", message);
+    printf("Encrypted: ");
+
+    for (int i = 0; i < length; i++) {
+        int m = char_to_num(message[i]);
+        encrypted[i] = mod_exp(m, e, n);
+        printf("%d ", encrypted[i]);
+    }
+    printf("\n");
+
+    // Attacker builds dictionary
+    int dictionary[3234]; // key = ciphertext, value = plaintext (0–25)
+    for (int i = 0; i < 3234; i++)
+        dictionary[i] = -1;
+
+    for (int m = 0; m < 26; m++) {
+        int c = mod_exp(m, e, n);
+        dictionary[c] = m;
+    }
+
+    printf("Attacker decrypts: ");
+    for (int i = 0; i < length; i++) {
+        int c = encrypted[i];
+        int m = dictionary[c];
+        if (m == -1)
+            printf("? ");
+        else
+            printf("%c ", num_to_char(m));
+    }
+    printf("\n");
+
+    return 0;
+}
