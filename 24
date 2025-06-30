@@ -1,0 +1,71 @@
+#include <stdio.h>
+
+// Extended Euclidean Algorithm
+int extended_gcd(int a, int b, int *x, int *y) {
+    if (a == 0) {
+        *x = 0; *y = 1;
+        return b;
+    }
+    int x1, y1;
+    int gcd = extended_gcd(b % a, a, &x1, &y1);
+    *x = y1 - (b / a) * x1;
+    *y = x1;
+    return gcd;
+}
+
+// Modular inverse: e^(-1) mod phi
+int mod_inverse(int e, int phi) {
+    int x, y;
+    int gcd = extended_gcd(e, phi, &x, &y);
+    if (gcd != 1) return -1;  // Inverse doesn't exist
+    return (x % phi + phi) % phi;
+}
+
+// RSA encryption
+int rsa_encrypt(int msg, int e, int n) {
+    int result = 1;
+    for (int i = 0; i < e; i++) {
+        result = (result * msg) % n;
+    }
+    return result;
+}
+
+// RSA decryption
+int rsa_decrypt(int cipher, int d, int n) {
+    int result = 1;
+    for (int i = 0; i < d; i++) {
+        result = (result * cipher) % n;
+    }
+    return result;
+}
+
+int main() {
+    int e = 31;
+    int n = 3599;
+
+    // Trial and error has shown:
+    int p = 59;
+    int q = 61;
+    int phi = (p - 1) * (q - 1);  // φ(n) = 3480
+
+    int d = mod_inverse(e, phi);
+
+    if (d == -1) {
+        printf("No modular inverse found.\n");
+        return 1;
+    }
+
+    printf("Public key: (e = %d, n = %d)\n", e, n);
+    printf("Private key: (d = %d, n = %d)\n", d, n);
+
+    // Test encryption/decryption
+    int plaintext = 123;  // Example plaintext
+    int ciphertext = rsa_encrypt(plaintext, e, n);
+    int decrypted = rsa_decrypt(ciphertext, d, n);
+
+    printf("Plaintext: %d\n", plaintext);
+    printf("Ciphertext: %d\n", ciphertext);
+    printf("Decrypted: %d\n", decrypted);
+
+    return 0;
+}
