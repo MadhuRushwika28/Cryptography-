@@ -1,0 +1,162 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#define ALPHABET_SIZE 26
+#define MAX_TEXT_LEN 1024
+#define TOP_RESULTS 10
+#define TOP_N 5  // number of top letters to permute
+
+const char english_freq_order[ALPHABET_SIZE+1] = "ETAOINSHRDLCUMWFGYPBVKJXQZ";
+
+// Structure to hold candidate plaintexts and scores
+typedef struct {
+    char plaintext[MAX_TEXT_LEN];
+    double score;
+    char key[ALPHABET_SIZE];
+} Candidate;
+
+char ciphertext[MAX_TEXT_LEN];
+int cipher_freq[ALPHABET_SIZE];
+char cipher_letters_by_freq[ALPHABET_SIZE];
+
+// English letter frequencies (in percentage)
+const double english_freq[ALPHABET_SIZE] = {
+    8.167, 1.492, 2.782, 4.253,12.702, 2.228, 2.015,
+    6.094, 6.966, 0.153, 0.772, 4.025, 2.406, 6.749,
+    7.507, 1.929, 0.095, 5.987, 6.327, 9.056, 2.758,
+    0.978, 2.360, 0.150, 1.974, 0.074
+};
+
+void count_freq(const char *text, int freq[ALPHABET_SIZE]) {
+    for (int i=0; i<ALPHABET_SIZE; i++) freq[i]=0;
+    for (int i=0; text[i]; i++) {
+        if (isalpha(text[i])) {
+            freq[toupper(text[i])-'A']++;
+        }
+    }
+}
+
+void sort_letters_by_freq(int freq[ALPHABET_SIZE], char sorted[ALPHABET_SIZE]) {
+    int freq_copy[ALPHABET_SIZE];
+    memcpy(freq_copy, freq, sizeof(freq_copy));
+    for (int i=0; i<ALPHABET_SIZE; i++) {
+        int max_idx=0;
+        for (int j=1; j<ALPHABET_SIZE; j++) {
+            if (freq_copy[j] > freq_copy[max_idx]) max_idx=j;
+        }
+        sorted[i] = 'A' + max_idx;
+        freq_copy[max_idx] = -1; // mark used
+    }
+}
+
+double score_text(const char *text) {
+    int count[ALPHABET_SIZE] = {0};
+    int total=0;
+    for (int i=0; text[i]; i++) {
+        if (isalpha(text[i])) {
+            count[toupper(text[i])-'A']++;
+            total++;
+        }
+    }
+    if (total==0) return 1e9; // no letters means bad score
+
+    double score=0.0;
+    for (int i=0; i<ALPHABET_SIZE; i++) {
+        double freq = (double)count[i]*100.0/total;
+        double diff = freq - english_freq[i];
+        score += diff*diff;
+    }
+    return score;
+}
+
+void apply_key(const char *cipher, char *plain, const char key[ALPHABET_SIZE]) {
+    for (int i=0; cipher[i]; i++) {
+        char c = cipher[i];
+        if (isalpha(c)) {
+            int idx = toupper(c) - 'A';
+            char p = key[idx];
+            plain[i] = isupper(c) ? p : tolower(p);
+        } else plain[i] = c;
+    }
+    plain[strlen(cipher)] = 0;
+}
+
+// Generate permutations of top letters and try keys
+void permute(char *arr, int l, int r, Candidate *candidates, int *count) {
+    if (l == r) {
+        // Build key: map cipher freq letters to this permutation for top N letters
+        // For rest letters, map to themselves (identity)
+        char key[ALPHABET_SIZE];
+        for (int i=0; i<ALPHABET_SIZE; i++) key[i] = (char)('A' + i);
+
+        for (int i=0; i<TOP_N; i++) {
+            int idx = cipher_letters_by_freq[i] - 'A';
+            key[idx] = arr[i];
+        }
+
+        char plaintext[MAX_TEXT_LEN];
+        apply_key(ciphertext, plaintext, key);
+
+        double s = score_text(plaintext);
+        // Save candidate
+        strcpy(candidates[*count].plaintext, plaintext);
+        candidates[*count].score = s;
+        memcpy(candidates[*count].key, key, ALPHABET_SIZE);
+        (*count)++;
+    } else {
+        for (int i=l; i<=r; i++) {
+            char temp = arr[l];
+            arr[l] = arr[i];
+            arr[i] = temp;
+
+            permute(arr, l+1, r, candidates, count);
+
+            temp = arr[l];
+            arr[l] = arr[i];
+            arr[i] = temp;
+        }
+    }
+}
+
+int compare_candidates(const void *a, const void *b) {
+    Candidate *c1 = (Candidate*)a;
+    Candidate *c2 = (Candidate*)b;
+    if (c1->score < c2->score) return -1;
+    if (c1->score > c2->score) return 1;
+    return 0;
+}
+
+int main() {
+    printf("Enter ciphertext:\n");
+    fgets(ciphertext, sizeof(ciphertext), stdin);
+    ciphertext[strcspn(ciphertext, "\n")] = 0;
+
+    count_freq(ciphertext, cipher_freq);
+    sort_letters_by_freq(cipher_freq, cipher_letters_by_freq);
+
+    printf("Cipher letters by frequency: %.*s\n", ALPHABET_SIZE, cipher_letters_by_freq);
+
+    // We'll generate permutations of top N English freq letters for key guesses
+    char top_english_letters[TOP_N];
+    memcpy(top_english_letters, english_freq_order, TOP_N);
+
+    // We'll generate all permutations of top_english_letters (120 for TOP_N=5)
+    Candidate candidates[1000];
+    int candidate_count = 0;
+
+    permute(top_english_letters, 0, TOP_N-1, candidates, &candidate_count);
+
+    // Sort candidates by score ascending (best matches first)
+    qsort(candidates, candidate_count, sizeof(Candidate), compare_candidates);
+
+    int to_show = candidate_count < TOP_RESULTS ? candidate_count : TOP_RESULTS;
+
+    printf("\nTop %d possible plaintexts:\n", to_show);
+    for (int i=0; i<to_show; i++) {
+        printf("Score: %.3f, Plaintext:\n%s\n\n", candidates[i].score, candidates[i].plaintext);
+    }
+
+    return 0;
+}
