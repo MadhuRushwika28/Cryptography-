@@ -1,0 +1,101 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
+
+#define ALPHABET_SIZE 26
+#define MAX_TEXT_LEN 1024
+#define TOP_RESULTS 10
+
+// English letter frequencies (percentages)
+const double english_freq[ALPHABET_SIZE] = {
+    8.167, 1.492, 2.782, 4.253, 12.702, 2.228, 2.015,
+    6.094, 6.966, 0.153, 0.772, 4.025, 2.406, 6.749,
+    7.507, 1.929, 0.095, 5.987, 6.327, 9.056, 2.758,
+    0.978, 2.360, 0.150, 1.974, 0.074
+};
+
+// Compute letter frequencies (%) in text
+void compute_freq(const char *text, double freq[ALPHABET_SIZE]) {
+    int count[ALPHABET_SIZE] = {0};
+    int total = 0;
+
+    for (int i = 0; text[i]; i++) {
+        if (isalpha(text[i])) {
+            count[toupper(text[i]) - 'A']++;
+            total++;
+        }
+    }
+
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        freq[i] = (total > 0) ? ((double)count[i] * 100.0 / total) : 0;
+    }
+}
+
+// Score plaintext frequency against English frequency (lower is better)
+double score_text(const double freq[ALPHABET_SIZE]) {
+    double score = 0.0;
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        double diff = freq[i] - english_freq[i];
+        score += diff * diff;
+    }
+    return score;
+}
+
+// Decrypt text by shifting letters by key (0-25)
+void decrypt(const char *ciphertext, char *plaintext, int key) {
+    for (int i = 0; ciphertext[i]; i++) {
+        char c = ciphertext[i];
+        if (isalpha(c)) {
+            char base = isupper(c) ? 'A' : 'a';
+            plaintext[i] = (char)((((c - base) - key + ALPHABET_SIZE) % ALPHABET_SIZE) + base);
+        } else {
+            plaintext[i] = c;
+        }
+    }
+    plaintext[strlen(ciphertext)] = '\0';
+}
+
+typedef struct {
+    double score;
+    int key;
+    char plaintext[MAX_TEXT_LEN];
+} Candidate;
+
+int compare_candidates(const void *a, const void *b) {
+    Candidate *c1 = (Candidate*)a;
+    Candidate *c2 = (Candidate*)b;
+    if (c1->score < c2->score) return -1;
+    if (c1->score > c2->score) return 1;
+    return 0;
+}
+
+int main() {
+    char ciphertext[MAX_TEXT_LEN];
+    printf("Enter ciphertext: ");
+    fgets(ciphertext, sizeof(ciphertext), stdin);
+    ciphertext[strcspn(ciphertext, "\n")] = '\0';  // Remove newline
+
+    Candidate candidates[ALPHABET_SIZE];
+
+    for (int key = 0; key < ALPHABET_SIZE; key++) {
+        decrypt(ciphertext, candidates[key].plaintext, key);
+
+        double freq[ALPHABET_SIZE];
+        compute_freq(candidates[key].plaintext, freq);
+
+        candidates[key].score = score_text(freq);
+        candidates[key].key = key;
+    }
+
+    // Sort candidates by score (best matches first)
+    qsort(candidates, ALPHABET_SIZE, sizeof(Candidate), compare_candidates);
+
+    int output_count = TOP_RESULTS < ALPHABET_SIZE ? TOP_RESULTS : ALPHABET_SIZE;
+    printf("\nTop %d possible plaintexts:\n", output_count);
+    for (int i = 0; i < output_count; i++) {
+        printf("Key=%2d, Score=%.3f: %s\n", candidates[i].key, candidates[i].score, candidates[i].plaintext);
+    }
+
+    return 0;
+}
