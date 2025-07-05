@@ -1,0 +1,79 @@
+#include <stdio.h>
+
+#define MOD 26
+#define SIZE 2
+
+// Function to compute modular inverse of an integer mod 26
+int modInverse(int a, int m) {
+    a = a % m;
+    for (int x = 1; x < m; x++)
+       if ((a * x) % m == 1)
+          return x;
+    return -1; // no inverse if -1
+}
+
+// Function to compute determinant mod 26 of 2x2 matrix
+int determinant(int matrix[SIZE][SIZE]) {
+    int det = (matrix[0][0]*matrix[1][1] - matrix[0][1]*matrix[1][0]) % MOD;
+    if (det < 0) det += MOD;
+    return det;
+}
+
+// Function to find inverse of 2x2 matrix mod 26
+int inverseMatrix(int matrix[SIZE][SIZE], int invMatrix[SIZE][SIZE]) {
+    int det = determinant(matrix);
+    int detInv = modInverse(det, MOD);
+    if (detInv == -1) return 0; // no inverse
+    
+    invMatrix[0][0] = (matrix[1][1] * detInv) % MOD;
+    invMatrix[0][1] = ((-matrix[0][1] + MOD) * detInv) % MOD;
+    invMatrix[1][0] = ((-matrix[1][0] + MOD) * detInv) % MOD;
+    invMatrix[1][1] = (matrix[0][0] * detInv) % MOD;
+    
+    return 1;
+}
+
+// Multiply 2x2 matrices mod 26
+void multiplyMatrices(int A[SIZE][SIZE], int B[SIZE][SIZE], int result[SIZE][SIZE]) {
+    for (int i=0; i<SIZE; i++) {
+        for (int j=0; j<SIZE; j++) {
+            result[i][j] = 0;
+            for (int k=0; k<SIZE; k++) {
+                result[i][j] += A[i][k] * B[k][j];
+            }
+            result[i][j] %= MOD;
+        }
+    }
+}
+
+int main() {
+    // Known plaintext matrix P (2 vectors as columns)
+    // Example: Plaintext "HE" (7,4), "LL" (11,11)
+    int P[SIZE][SIZE] = { {7, 11},
+                          {4, 11} };
+
+    // Corresponding ciphertext matrix C
+    // For example ciphertext "RI" (17,8), "JS" (9,18)
+    int C[SIZE][SIZE] = { {17, 9},
+                          {8, 18} };
+
+    int P_inv[SIZE][SIZE];
+    int K[SIZE][SIZE];
+
+    if (!inverseMatrix(P, P_inv)) {
+        printf("Plaintext matrix not invertible mod 26. Cannot find key.\n");
+        return 1;
+    }
+
+    multiplyMatrices(C, P_inv, K);
+
+    printf("Recovered key matrix K:\n");
+    for (int i=0; i<SIZE; i++) {
+        for (int j=0; j<SIZE; j++) {
+            printf("%d ", K[i][j]);
+        }
+        printf("\n");
+    }
+
+    return 0;
+}
