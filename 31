@@ -1,0 +1,86 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+#define BLOCK_SIZE_64 8
+#define BLOCK_SIZE_128 16
+
+// XOR constant Rb for 64-bit and 128-bit blocks
+const uint8_t Rb_64[BLOCK_SIZE_64] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x1B};
+const uint8_t Rb_128[BLOCK_SIZE_128] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                                        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x87};
+
+// Left shift a block by 1 bit
+void left_shift(const uint8_t *input, uint8_t *output, int size) {
+    int i;
+    uint8_t overflow = 0;
+    for(i = size-1; i >=0; i--) {
+        output[i] = (input[i] << 1) | overflow;
+        overflow = (input[i] & 0x80) ? 1 : 0;  // Save MSB for next byte
+    }
+}
+
+// XOR two blocks
+void xor_blocks(const uint8_t *a, const uint8_t *b, uint8_t *out, int size) {
+    for(int i=0; i<size; i++) {
+        out[i] = a[i] ^ b[i];
+    }
+}
+
+// Print block in hex
+void print_block(const uint8_t *block, int size) {
+    for(int i=0; i<size; i++) {
+        printf("%02X ", block[i]);
+    }
+    printf("\n");
+}
+
+int main() {
+    int block_size;
+    printf("Enter block size (64 or 128): ");
+    scanf("%d", &block_size);
+
+    if(block_size != 64 && block_size != 128) {
+        printf("Unsupported block size.\n");
+        return 1;
+    }
+
+    int size_bytes = block_size / 8;
+
+    // Simulated encrypted zero block (in real use, encrypt 0^block_size under key)
+    uint8_t L[BLOCK_SIZE_128] = {0};  // initialize max size buffer
+    // For demonstration, let's simulate some value (normally encrypt(0))
+    for(int i=0; i<size_bytes; i++) L[i] = 0x80;  // example pattern
+
+    uint8_t K1[BLOCK_SIZE_128];
+    uint8_t K2[BLOCK_SIZE_128];
+    uint8_t temp[BLOCK_SIZE_128];
+
+    // Step 1: Generate K1 = L << 1; if MSB of L is 1, K1 = K1 XOR Rb
+    left_shift(L, K1, size_bytes);
+
+    if(L[0] & 0x80) {
+        if(block_size == 64)
+            xor_blocks(K1, Rb_64, K1, size_bytes);
+        else
+            xor_blocks(K1, Rb_128, K1, size_bytes);
+    }
+
+    // Step 2: Generate K2 = K1 << 1; if MSB of K1 is 1, K2 = K2 XOR Rb
+    left_shift(K1, K2, size_bytes);
+
+    if(K1[0] & 0x80) {
+        if(block_size == 64)
+            xor_blocks(K2, Rb_64, K2, size_bytes);
+        else
+            xor_blocks(K2, Rb_128, K2, size_bytes);
+    }
+
+    printf("Subkey K1: ");
+    print_block(K1, size_bytes);
+
+    printf("Subkey K2: ");
+    print_block(K2, size_bytes);
+
+    return 0;
+}
