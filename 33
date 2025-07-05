@@ -1,0 +1,130 @@
+#include <stdio.h>
+#include <stdint.h>
+
+// Initial Permutation table
+int IP[64] = {
+    58,50,42,34,26,18,10,2,
+    60,52,44,36,28,20,12,4,
+    62,54,46,38,30,22,14,6,
+    64,56,48,40,32,24,16,8,
+    57,49,41,33,25,17,9,1,
+    59,51,43,35,27,19,11,3,
+    61,53,45,37,29,21,13,5,
+    63,55,47,39,31,23,15,7
+};
+
+// Final Permutation table (inverse of IP)
+int FP[64] = {
+    40,8,48,16,56,24,64,32,
+    39,7,47,15,55,23,63,31,
+    38,6,46,14,54,22,62,30,
+    37,5,45,13,53,21,61,29,
+    36,4,44,12,52,20,60,28,
+    35,3,43,11,51,19,59,27,
+    34,2,42,10,50,18,58,26,
+    33,1,41,9,49,17,57,25
+};
+
+// Function to apply permutation to input block
+uint64_t permute(uint64_t input, int *table, int n) {
+    uint64_t output = 0;
+    for(int i=0; i<n; i++) {
+        output <<=1;
+        output |= (input >> (64 - table[i])) & 0x01;
+    }
+    return output;
+}
+
+// Left rotate for key schedule (simplified here)
+uint32_t left_rotate_28(uint32_t val, int shifts) {
+    return ((val << shifts) | (val >> (28 - shifts))) & 0x0FFFFFFF;
+}
+
+// A simplified placeholder for the Feistel function (normally complex)
+uint32_t feistel(uint32_t right, uint64_t subkey) {
+    // Normally: expand, XOR subkey, S-boxes, permutation etc.
+    // Here just a dummy operation:
+    return right ^ (uint32_t)(subkey & 0xFFFFFFFF);
+}
+
+// Simplified key schedule: generate 16 subkeys (here dummy subkeys)
+void generate_subkeys(uint64_t key, uint64_t subkeys[16]) {
+    for(int i=0; i<16; i++) {
+        subkeys[i] = key ^ ((uint64_t)i << 32); // Dummy variation
+    }
+}
+
+// DES encrypt one 64-bit block
+uint64_t des_encrypt(uint64_t plaintext, uint64_t key) {
+    uint64_t subkeys[16];
+    generate_subkeys(key, subkeys);
+
+    // Initial Permutation
+    uint64_t ip = permute(plaintext, IP, 64);
+
+    uint32_t left = (uint32_t)(ip >> 32);
+    uint32_t right = (uint32_t)(ip & 0xFFFFFFFF);
+
+    // 16 rounds
+    for(int i=0; i<16; i++) {
+        uint32_t temp = right;
+        right = left ^ feistel(right, subkeys[i]);
+        left = temp;
+    }
+
+    // Preoutput (note swap of halves)
+    uint64_t preoutput = ((uint64_t)right << 32) | left;
+
+    // Final Permutation
+    uint64_t ciphertext = permute(preoutput, FP, 64);
+
+    return ciphertext;
+}
+
+// DES decrypt one 64-bit block
+uint64_t des_decrypt(uint64_t ciphertext, uint64_t key) {
+    uint64_t subkeys[16];
+    generate_subkeys(key, subkeys);
+
+    // Initial Permutation
+    uint64_t ip = permute(ciphertext, IP, 64);
+
+    uint32_t left = (uint32_t)(ip >> 32);
+    uint32_t right = (uint32_t)(ip & 0xFFFFFFFF);
+
+    // 16 rounds in reverse order
+    for(int i=15; i>=0; i--) {
+        uint32_t temp = right;
+        right = left ^ feistel(right, subkeys[i]);
+        left = temp;
+    }
+
+    // Preoutput (note swap of halves)
+    uint64_t preoutput = ((uint64_t)right << 32) | left;
+
+    // Final Permutation
+    uint64_t plaintext = permute(preoutput, FP, 64);
+
+    return plaintext;
+}
+
+int main() {
+    uint64_t plaintext = 0x0123456789ABCDEF;
+    uint64_t key = 0x133457799BBCDFF1; // 56-bit key + parity bits (simplified)
+
+    printf("Plaintext : %016llX\n", plaintext);
+
+    uint64_t ciphertext = des_encrypt(plaintext, key);
+    printf("Ciphertext: %016llX\n", ciphertext);
+
+    uint64_t decrypted = des_decrypt(ciphertext, key);
+    printf("Decrypted : %016llX\n", decrypted);
+
+    if(decrypted == plaintext) {
+        printf("DES Encryption and Decryption successful.\n");
+    } else {
+        printf("Mismatch in DES operation!\n");
+    }
+
+    return 0;
+}
