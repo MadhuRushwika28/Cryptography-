@@ -1,0 +1,52 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
+
+// Mock DSA signature: includes random k for each signature
+void signDSA(const char *message, char *signature, int sig_len) {
+    // Generate random k (mock)
+    int k = rand() % 100000;
+    snprintf(signature, sig_len, "DSA_SIG_%s_%d", message, k);
+}
+
+// Mock RSA signature: deterministic signature for same message
+void signRSA(const char *message, char *signature, int sig_len) {
+    // No randomness, just a hash simulation (here simplified as message length)
+    int hash = (int)strlen(message);
+    snprintf(signature, sig_len, "RSA_SIG_%s_%d", message, hash);
+}
+
+int main() {
+    srand(time(NULL));
+
+    const char *msg = "Hello, world!";
+    char dsa_sig1[100], dsa_sig2[100];
+    char rsa_sig1[100], rsa_sig2[100];
+
+    // Sign twice with DSA (should differ)
+    signDSA(msg, dsa_sig1, sizeof(dsa_sig1));
+    signDSA(msg, dsa_sig2, sizeof(dsa_sig2));
+
+    // Sign twice with RSA (should be same)
+    signRSA(msg, rsa_sig1, sizeof(rsa_sig1));
+    signRSA(msg, rsa_sig2, sizeof(rsa_sig2));
+
+    printf("Message: %s\n\n", msg);
+
+    printf("DSA Signature 1: %s\n", dsa_sig1);
+    printf("DSA Signature 2: %s\n", dsa_sig2);
+    if(strcmp(dsa_sig1, dsa_sig2) != 0)
+        printf("DSA signatures differ (due to random k)\n\n");
+    else
+        printf("DSA signatures are the same\n\n");
+
+    printf("RSA Signature 1: %s\n", rsa_sig1);
+    printf("RSA Signature 2: %s\n", rsa_sig2);
+    if(strcmp(rsa_sig1, rsa_sig2) == 0)
+        printf("RSA signatures are the same (deterministic)\n");
+    else
+        printf("RSA signatures differ\n");
+
+    return 0;
+}
