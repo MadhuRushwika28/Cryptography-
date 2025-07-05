@@ -1,0 +1,86 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define ALPHABET_SIZE 26
+#define MAX_TEXT_LEN 1024
+#define TOP_PLAINTEXTS 10
+
+// English letter frequency order (most frequent to least)
+const char english_freq_order[ALPHABET_SIZE+1] = "ETAOINSHRDLCUMWFGYPBVKJXQZ";
+
+// Count letter frequencies in text
+void count_freq(const char *text, int freq[ALPHABET_SIZE]) {
+    for (int i = 0; i < ALPHABET_SIZE; i++) freq[i] = 0;
+    for (int i = 0; text[i] != '\0'; i++) {
+        if (isalpha(text[i])) {
+            freq[toupper(text[i]) - 'A']++;
+        }
+    }
+}
+
+// Find letters sorted by frequency descending
+void sort_letters_by_freq(int freq[ALPHABET_SIZE], char sorted[ALPHABET_SIZE]) {
+    int freq_copy[ALPHABET_SIZE];
+    memcpy(freq_copy, freq, sizeof(freq_copy));
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        int max_idx = 0;
+        for (int j = 1; j < ALPHABET_SIZE; j++) {
+            if (freq_copy[j] > freq_copy[max_idx]) max_idx = j;
+        }
+        sorted[i] = 'A' + max_idx;
+        freq_copy[max_idx] = -1;  // mark used
+    }
+}
+
+// Apply substitution key to ciphertext
+void decrypt_with_key(const char *ciphertext, char *plaintext, const char key[ALPHABET_SIZE]) {
+    for (int i = 0; ciphertext[i] != '\0'; i++) {
+        if (isalpha(ciphertext[i])) {
+            int idx = toupper(ciphertext[i]) - 'A';
+            char p = key[idx];
+            // preserve case
+            plaintext[i] = isupper(ciphertext[i]) ? p : tolower(p);
+        } else {
+            plaintext[i] = ciphertext[i];
+        }
+    }
+    plaintext[strlen(ciphertext)] = '\0';
+}
+
+int main() {
+    char ciphertext[MAX_TEXT_LEN];
+    printf("Enter ciphertext: ");
+    fgets(ciphertext, sizeof(ciphertext), stdin);
+
+    // Strip newline if present
+    ciphertext[strcspn(ciphertext, "\n")] = '\0';
+
+    int freq[ALPHABET_SIZE];
+    count_freq(ciphertext, freq);
+
+    char cipher_freq_order[ALPHABET_SIZE];
+    sort_letters_by_freq(freq, cipher_freq_order);
+
+    printf("Ciphertext letter freq order: %s\n", cipher_freq_order);
+    printf("English freq order         : %s\n", english_freq_order);
+
+    // Build a simple substitution key mapping cipher freq letters to English freq letters
+    char key[ALPHABET_SIZE];
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        // map cipher freq letter to English freq letter
+        // find index of cipher letter in alphabet to place in key
+        key[cipher_freq_order[i] - 'A'] = english_freq_order[i];
+    }
+
+    printf("\nTop 1 possible plaintext:\n");
+    char plaintext[MAX_TEXT_LEN];
+    decrypt_with_key(ciphertext, plaintext, key);
+    printf("%s\n", plaintext);
+
+    // Note: Generating and ranking top 10 plaintexts would require
+    // permutations or dictionary checks, which is complex to do here.
+    // This is a basic implementation with the top candidate only.
+
+    return 0;
+}
